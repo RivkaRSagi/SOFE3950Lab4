@@ -10,10 +10,12 @@
 
 //struct datatype to define a process
 typedef struct process{
+    int pid;
     int arrivalTime;
     int priority;
-    int processorTime;
-    int MBytes;
+    int processorTime; //in seconds
+    int MBytes; //memory location/block size
+    //resources requested by the process
     int numPrinters;
     int numScanners;
     int numModems;
@@ -27,7 +29,7 @@ typedef struct queue{
 }fifoQueue;
 
 /*  Process operations:
-    printProcess() - print the name, priority, pid, memory, and runtime
+    printProcess() - print process id, priority, processor time remaining, memory location, resources
 
     FIFO Operations:
     push() - push a new process to end of queue
@@ -35,9 +37,10 @@ typedef struct queue{
     printQueue() - print contents in queue
 */
 
-//printProcess prints the name, priority, pid, and runtime of a process
+//printProcess print process id, priority, processor time remaining, memory location, resources
 void printProcess(process proc){
-    printf("%s %d %d %d %d\n", proc.name, proc.priority, proc.pid, proc.memory, proc.runtime);
+    printf("PID: %d\npriority: %d\ntime remaining: %d\nMbytes: %d\nprinters: %d\nscanners: %d\nmodems: %d\nCDs: %d\n\n", 
+        proc.pid, proc.priority, proc.processorTime, proc.MBytes, proc.numPrinters, proc.numScanners, proc.numModems, proc.numCDs);
 }
 
 //push a new process to end of queue
