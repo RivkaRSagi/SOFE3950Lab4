@@ -116,147 +116,175 @@ fifoQueue *user3 = NULL;
 
 
 // IQRAS CODEE
-
-
-
-
-
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 
-#define MAX_PROCESSES 1000
+#define MAX_PROCESSES 100
 #define MEMORY_SIZE 1024
-#define REAL_TIME_MEMORY 64
-#define USER_MEMORY (MEMORY_SIZE - REAL_TIME_MEMORY)
-#define TIME_QUANTUM 1
+#define TIME_QUANTUM 2
 
-// Resource constraints
-#define PRINTERS 2
-#define SCANNERS 1
-#define MODEMS 1
-#define CDS 2
-
-// Process structure
+// Process Structure
 typedef struct Process {
+    int id;
     int arrival_time;
     int priority;
-    int processor_time;
+    int cpu_time;
     int memory;
     int printers;
     int scanners;
     int modems;
     int cds;
-    int pid;
-    struct Process *next;
+    int remaining_time;
+    struct Process* next;
 } Process;
 
-// Queue structure
+// Queue Structure
 typedef struct Queue {
-    Process *front, *rear;
+    Process* front;
+    Process* rear;
 } Queue;
 
-void initializeQueue(Queue *q) {
+// Function to initialize queue
+void init_queue(Queue* q) {
     q->front = q->rear = NULL;
 }
 
-bool isEmpty(Queue *q) {
-    return q->front == NULL;
-}
-
-void enqueue(Queue *q, Process *p) {
+// Function to enqueue process
+void enqueue(Queue* q, Process* p) {
+    p->next = NULL;
     if (q->rear == NULL) {
         q->front = q->rear = p;
     } else {
         q->rear->next = p;
         q->rear = p;
     }
-    p->next = NULL;
 }
 
-Process* dequeue(Queue *q) {
-    if (isEmpty(q)) return NULL;
-    Process *temp = q->front;
+// Function to dequeue process
+Process* dequeue(Queue* q) {
+    if (q->front == NULL) return NULL;
+    Process* temp = q->front;
     q->front = q->front->next;
     if (q->front == NULL) q->rear = NULL;
     return temp;
 }
 
-// Memory and Resource Tracking
-int available_memory = USER_MEMORY;
-int available_printers = PRINTERS;
-int available_scanners = SCANNERS;
-int available_modems = MODEMS;
-int available_cds = CDS;
+// Function to check if queue is empty
+bool is_empty(Queue* q) {
+    return q->front == NULL;
+}
 
-void load_dispatch_list(const char *filename, Queue *rt_queue, Queue *user_queue[]) {
-    FILE *file = fopen(filename, "r");
+// Memory allocation tracking
+int available_memory = MEMORY_SIZE;
+
+// Function to check if enough memory is available
+bool allocate_memory(int size) {
+    if (available_memory >= size) {
+        available_memory -= size;
+        return true;
+    }
+    return false;
+}
+
+// Function to release memory
+void release_memory(int size) {
+    available_memory += size;
+}
+
+// Function to read dispatch list
+void read_dispatch_list(const char* filename, Queue* submission_queue) {
+    FILE* file = fopen(filename, "r");
     if (!file) {
         perror("Error opening file");
-        exit(EXIT_FAILURE);
+        exit(1);
     }
     
-    int arrival_time, priority, processor_time, memory, printers, scanners, modems, cds, pid = 0;
-    while (fscanf(file, "%d, %d, %d, %d, %d, %d, %d, %d", &arrival_time, &priority, &processor_time, &memory, &printers, &scanners, &modems, &cds) != EOF) {
-        Process *p = (Process*)malloc(sizeof(Process));
-        p->arrival_time = arrival_time;
-        p->priority = priority;
-        p->processor_time = processor_time;
-        p->memory = memory;
-        p->printers = printers;
-        p->scanners = scanners;
-        p->modems = modems;
-        p->cds = cds;
-        p->pid = pid++;
-        p->next = NULL;
-        
-        if (priority == 0) {
-            enqueue(rt_queue, p);
-        } else {
-            enqueue(&user_queue[priority - 1], p);
-        }
+    char line[256];
+    while (fgets(line, sizeof(line), file)) {
+        Process* p = (Process*)malloc(sizeof(Process));
+        sscanf(line, "%d,%d,%d,%d,%d,%d,%d,%d,%d", 
+               &p->id, &p->arrival_time, &p->priority, &p->cpu_time, &p->memory, 
+               &p->printers, &p->scanners, &p->modems, &p->cds);
+        p->remaining_time = p->cpu_time;
+        enqueue(submission_queue, p);
     }
     fclose(file);
 }
 
-void execute_process(Process *p) {
-    printf("Executing Process ID: %d | Priority: %d | Time Remaining: %d sec | Memory: %d MB | Printers: %d | Scanners: %d | Modems: %d | CDs: %d\n",
-           p->pid, p->priority, p->processor_time, p->memory, p->printers, p->scanners, p->modems, p->cds);
-    free(p);
-}
-
-void dispatcher(Queue *rt_queue, Queue *user_queue[]) {
-    while (!isEmpty(rt_queue) || !isEmpty(&user_queue[0]) || !isEmpty(&user_queue[1]) || !isEmpty(&user_queue[2])) {
-        if (!isEmpty(rt_queue)) {
-            Process *p = dequeue(rt_queue);
-            execute_process(p);
-        } else {
-            for (int i = 0; i < 3; i++) {
-                if (!isEmpty(&user_queue[i])) {
-                    Process *p = dequeue(&user_queue[i]);
-                    execute_process(p);
-                    break;
+// Dispatcher function
+void dispatcher(Queue* submission_queue) {
+    Queue real_time_queue, user_queue_1, user_queue_2, user_queue_3;
+    init_queue(&real_time_queue);
+    init_queue(&user_queue_1);
+    init_queue(&user_queue_2);
+    init_queue(&user_queue_3);
+    
+    int current_time = 0;
+    while (!is_empty(submission_queue) || !is_empty(&real_time_queue) || !is_empty(&user_queue_1) || !is_empty(&user_queue_2) || !is_empty(&user_queue_3)) {
+        
+        // Load processes into queues
+        while (!is_empty(submission_queue) && submission_queue->front->arrival_time <= current_time) {
+            Process* p = dequeue(submission_queue);
+            if (p->priority == 0) {
+                enqueue(&real_time_queue, p);
+            } else if (p->priority == 1) {
+                enqueue(&user_queue_1, p);
+            } else if (p->priority == 2) {
+                enqueue(&user_queue_2, p);
+            } else {
+                enqueue(&user_queue_3, p);
+            }
+        }
+        
+        // Execute Real-Time Queue
+        if (!is_empty(&real_time_queue)) {
+            Process* p = dequeue(&real_time_queue);
+            printf("Time %d: Running Real-Time Process %d\n", current_time, p->id);
+            current_time += p->cpu_time;
+            release_memory(p->memory);
+            free(p);
+            continue;
+        }
+        
+        // Execute User-Level Queues
+        Queue* user_queues[3] = { &user_queue_1, &user_queue_2, &user_queue_3 };
+        for (int i = 0; i < 3; i++) {
+            if (!is_empty(user_queues[i])) {
+                Process* p = dequeue(user_queues[i]);
+                int exec_time = (p->remaining_time > TIME_QUANTUM) ? TIME_QUANTUM : p->remaining_time;
+                printf("Time %d: Running User Process %d (Priority %d) for %d units\n", current_time, p->id, p->priority, exec_time);
+                p->remaining_time -= exec_time;
+                current_time += exec_time;
+                
+                if (p->remaining_time > 0) {
+                    if (i < 2) {
+                        enqueue(user_queues[i + 1], p); // Lower priority
+                    } else {
+                        enqueue(&user_queue_3, p); // Round Robin
+                    }
+                } else {
+                    release_memory(p->memory);
+                    free(p);
                 }
+                break;
             }
         }
     }
+    printf("All processes completed.\n");
 }
 
 int main() {
-    char filename[256];
-    printf("Enter the dispatch list file name: ");
-    scanf("%s", filename);
+    Queue submission_queue;
+    init_queue(&submission_queue);
     
-    Queue rt_queue;
-    Queue user_queue[3];
-    initializeQueue(&rt_queue);
-    for (int i = 0; i < 3; i++) initializeQueue(&user_queue[i]);
+    // Read processes from file
+    read_dispatch_list("dispatch_list.txt", &submission_queue);
     
-    load_dispatch_list(filename, &rt_queue, user_queue);
-    dispatcher(&rt_queue, user_queue);
+    // Start dispatcher
+    dispatcher(&submission_queue);
     
     return 0;
 }
+
