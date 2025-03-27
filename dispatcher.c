@@ -131,7 +131,7 @@ int main(){
         new.numModems = atoi(mods);
         new.numCDs = atoi(cds);
 
-        //sort process to intended queue
+        //step 2: sort/push() the job into correct queue
         switch(new.priority){
             case 0: 
                 push(new, &priorityQ);
@@ -152,6 +152,7 @@ int main(){
         }
 
     }
+    //checkpoint: check if queues are sorted properly
     printf("printing priorityQ: \n");
     printQueue(priorityQ);
     printf("printing user1 queue: \n");
@@ -160,8 +161,6 @@ int main(){
     printQueue(user2);
     printf("printing user3 queue: \n");
     printQueue(user3);
-
-    //step 2: sort/push() the job into correct queue
 
     //step 3: if priority sorted ==0, run/pop from priority queue
 
