@@ -126,6 +126,10 @@ void deallocateResources(process toRun){
     sysModems += toRun.numModems;
     sysCDs += toRun.numCDs;
 }
+void printAvailableResources() {
+    printf ("Available system resources: \n");
+    printf("Memory: %d, Printers: %d, Scanners: %d, Modems: %d, CDs: %d \n",availableMem, sysPrinters, sysScanners, sysModems,sysCDs);
+}
 
 //FIFO 1 priorityQ: populate with real time (priority 0) processes
 fifoQueue *priorityQ = NULL;
@@ -145,6 +149,8 @@ int main(){
         //read a line from file, create process
     char buffer[256], arriveTime[2], prior[1], processTime[10], memory[10], prints[10], scans[10], mods[10], cds[10];
     FILE *fp = fopen("dispatchList.txt", "r");
+    printAvailableResources();
+    printf("\n");
 
     while(fgets(buffer, 256, fp)){
         strcpy(arriveTime, strtok(buffer, ","));
@@ -198,6 +204,8 @@ int main(){
             sleep(running.processorTime);
             printf("process is complete, reallocating memory\n");
             deallocateResources(running); 
+            printAvailableResources();
+            printf("\n");
         }
         else if(user1 != NULL){
             printf("USER1 QUEUE: information on process to be run: \n");
@@ -219,6 +227,8 @@ int main(){
                 }else{
                     printf("process complete, reallocating memory\n");
                     deallocateResources(running);
+                    printAvailableResources();
+                    printf("\n");
                 }
             }
             else{
@@ -233,7 +243,9 @@ int main(){
             running = pop(&user2);
             //check if requested resources are available or have already been assigned
             if(shouldRun(running) || running.suspended==true){
-                (running.suspended==true)?allocateResources(running):;           
+                if (running.suspended == true){
+                    allocateResources(running);
+                }           
                 printf("running for 1 second...\n");
                 sleep(1);
                 running.processorTime -= 1;
@@ -246,6 +258,8 @@ int main(){
                 }else{
                     printf("process complete, reallocating memory\n");
                     deallocateResources(running);
+                    printAvailableResources();
+                    printf("\n");
                 }   
             }
             else{
@@ -258,7 +272,9 @@ int main(){
             running = pop(&user3);
             //check if requested resources are available or have already been assigned
             if(shouldRun(running) || running.suspended == true){
-                (running.suspended==true)?allocateResources(running):;  
+                if (running.suspended == true){
+                    allocateResources(running);
+                }
                 printf("running for 1 second...\n");
                 sleep(1);
                 running.processorTime -= 1;
@@ -270,6 +286,8 @@ int main(){
                 }else{
                     printf("process complete, reallocating memory\n");//NOTE: code currently does not check that the memory stays a positive number
                     deallocateResources(running);
+                    printAvailableResources();
+                    printf("\n");
                 }
             }
             else{
@@ -281,6 +299,76 @@ int main(){
 
     }
     //end of while loop, dispatcher has finished reading processes from file
+
+    //while loop to ensure all queues are empty
+    // while (user1 != NULL || user2 != NULL || user3 != NULL) {
+    //     if (user1 != NULL) {
+    //         printf("USER1 QUEUE: Processing remaining processes...\n");
+    //         process running = pop(&user1); 
+    //         if (shouldRun(running)) {
+    //             printf("Running for 1 second...\n");
+    //             sleep(1);  
+    //             running.processorTime -= 1;  
+    
+    //             if (running.processorTime > 0) {
+    //                 push(running, &user2);  
+    //             } else {
+    //                 deallocateResources(running);  
+    //                 printAvailableResources();  
+    //             }
+    //         } else {
+    //             push(running, &user2);  
+    //         }
+    //     }
+    
+    //     // Process from user2 queue
+    //     if (user2 != NULL) {
+    //         printf("USER2 QUEUE: Processing remaining processes...\n");
+    //         process running = pop(&user2);  
+    //         if (shouldRun(running)) {
+    //             printf("Running for 1 second...\n");
+    //             sleep(1); 
+    //             running.processorTime -= 1;  
+    
+    //             if (running.processorTime > 0) {
+    //                 push(running, &user3);  
+    //             } else {
+    //                 deallocateResources(running);  
+    //                 printAvailableResources(); 
+    //             }
+    //         } else {
+    //             push(running, &user3);
+    //         }
+    //     }
+    
+    //     // Process from user3 queue
+    //     if (user3 != NULL) {
+    //         printf("USER3 QUEUE: Processing remaining processes...\n");
+    //         process running = pop(&user3);  
+    //         if (shouldRun(running)) {
+    //             printf("Running for 1 second...\n");
+    //             sleep(1);  
+    //             running.processorTime -= 1; 
+    
+    //             if (running.processorTime > 0) {
+    //                 push(running, &user3);  
+    //             } else {
+    //                 deallocateResources(running);  
+    //                 printAvailableResources(); 
+    //             }
+    //         } else {
+    //             push(running, &user3);  
+    //         }
+    //     }
+    
+    //     // Check if all queues are empty, break if they are
+    //     if (user1 == NULL && user2 == NULL && user3 == NULL) {
+    //         break; 
+    //     }
+    // }
+    printf("All process execution is done.. \n");
+    printf("Total system resources available after all execution: \n");
+    printAvailableResources();
     
     //last step: make sure the rest of the queues are empty
     //at this point the priority q has finished, there may be content in one of
