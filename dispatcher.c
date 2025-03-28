@@ -116,6 +116,16 @@ void allocateResources(process toRun){
     sysScanners -= toRun.numScanners;
     sysModems -= toRun.numModems;
     sysCDs -= toRun.numCDs;
+    if (availableMem < 0 || sysPrinters < 0 || sysScanners < 0 || sysModems < 0 || sysCDs < 0) {
+        printf("ERROR: Resources went below zero. Allocation failed.\n");
+        // Restore resources to prevent the system from running with negative resources
+        availableMem += toRun.MBytes;
+        sysPrinters += toRun.numPrinters;
+        sysScanners += toRun.numScanners;
+        sysModems += toRun.numModems;
+        sysCDs += toRun.numCDs;
+        return;
+    }
 }
 
 //deallocateResources deallocates the resource for a process
@@ -298,9 +308,9 @@ int main(){
         }
 
     }
-    //end of while loop, dispatcher has finished reading processes from file
+    // end of while loop, dispatcher has finished reading processes from file
 
-    //while loop to ensure all queues are empty
+    // while loop to ensure all queues are empty
     // while (user1 != NULL || user2 != NULL || user3 != NULL) {
     //     if (user1 != NULL) {
     //         printf("USER1 QUEUE: Processing remaining processes...\n");
