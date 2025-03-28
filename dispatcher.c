@@ -132,6 +132,10 @@ void deallocateResources(process toRun){
 void printMemory(){
     printf("system memory: %d\nprinters: %d\nscanners: %d\nmodems: %d\ncds: %d\n",availableMem, sysPrinters, sysScanners, sysModems, sysCDs);
 }
+void printAvailableResources() {
+    printf ("Available system resources: \n");
+    printf("Memory: %d, Printers: %d, Scanners: %d, Modems: %d, CDs: %d \n",availableMem, sysPrinters, sysScanners, sysModems,sysCDs);
+}
 
 //FIFO 1 priorityQ: populate with real time (priority 0) processes
 fifoQueue *priorityQ = NULL;
@@ -151,6 +155,8 @@ int main(){
         //read a line from file, create process
     char buffer[256], arriveTime[2], prior[1], processTime[10], memory[10], prints[10], scans[10], mods[10], cds[10];
     FILE *fp = fopen("dispatchList.txt", "r");
+    printAvailableResources();
+    printf("\n");
 
     while(fgets(buffer, 256, fp)){
         strcpy(arriveTime, strtok(buffer, ","));
@@ -213,6 +219,8 @@ int main(){
             //reallocate memory
             printf("process is complete, reallocating memory\n");
             deallocateResources(running); 
+            printAvailableResources();
+            printf("\n");
         }
         else if(user1 != NULL){
 
@@ -223,6 +231,7 @@ int main(){
             
             //check if requested resources are available
             if(shouldRun(running)){
+                
                 //then allocate resources 
                 allocateResources(running);
 
@@ -242,6 +251,8 @@ int main(){
                 }else{//if it is finished
                     printf("process complete, reallocating memory\n");
                     deallocateResources(running);
+                    printAvailableResources();
+                    printf("\n");
                 }
             }
             else{//if requested resources are not available
@@ -270,6 +281,8 @@ int main(){
                 }else{
                     printf("process complete, reallocating memory\n");
                     deallocateResources(running);
+                    printAvailableResources();
+                    printf("\n");
                 }   
             }
             else{
@@ -294,6 +307,8 @@ int main(){
                 }else{
                     printf("process complete, reallocating memory\n");//NOTE: code currently does not check that the memory stays a positive number
                     deallocateResources(running);
+                    printAvailableResources();
+                    printf("\n");
                 }
             }
             else{
