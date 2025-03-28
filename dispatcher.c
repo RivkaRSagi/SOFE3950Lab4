@@ -47,8 +47,9 @@ typedef struct queue{
 
 //printProcess print process id, priority, processor time remaining, memory location, resources
 void printProcess(process proc){
-    printf("priority: %d\ntime remaining: %d\nMbytes: %d\nprinters: %d\nscanners: %d\nmodems: %d\nCDs: %d\n\n", 
-       proc.priority, proc.processorTime, proc.MBytes, proc.numPrinters, proc.numScanners, proc.numModems, proc.numCDs);
+    printf("arrivalTime: %d priority: %d time remaining: %d Mbytes: %d printers: %d scanners: %d modems: %d CDs: %d\n\n", 
+       proc.arrivalTime, proc.priority, proc.processorTime, proc.MBytes, proc.numPrinters, proc.numScanners, proc.numModems, proc.numCDs);
+   
 }
 
 //push a new process to end of queue
@@ -120,11 +121,16 @@ void allocateResources(process toRun){
 
 //deallocateResources deallocates the resource for a process
 void deallocateResources(process toRun){
+    printf("INSIDE THE DEALLOCATE FUNCTION\n");
     availableMem += toRun.MBytes;
     sysPrinters += toRun.numPrinters;
     sysScanners += toRun.numScanners;
     sysModems += toRun.numModems;
     sysCDs += toRun.numCDs;
+}
+
+void printMemory(){
+    printf("system memory: %d\nprinters: %d\nscanners: %d\nmodems: %d\ncds: %d\n",availableMem, sysPrinters, sysScanners, sysModems, sysCDs);
 }
 
 //FIFO 1 priorityQ: populate with real time (priority 0) processes
@@ -187,43 +193,61 @@ int main(){
                 break;
         }
 
+        printMemory();
         process running;
         //step 3: if priority sorted ==0, run/pop from priority queue
         if(new.priority == 0){
+            //print process info
             printf("PRIORITY QUEUE: information on process to be run: \n");
             printProcess(new);
+
+            //pop from queue
             running = pop(&priorityQ);
+
             allocateResources(running); //allocate memory while processing
+
+            //running process
             printf("running for %d seconds... \n", running.processorTime);
             sleep(running.processorTime);
+
+            //reallocate memory
             printf("process is complete, reallocating memory\n");
             deallocateResources(running); 
         }
         else if(user1 != NULL){
+
+            //print process info
             printf("USER1 QUEUE: information on process to be run: \n");
-            printProcess(user1->proc);
-            running = pop(&user1);
+            running = pop(&user1);//pop from queue
+            printProcess(running);
+            
             //check if requested resources are available
             if(shouldRun(running)){
                 //then allocate resources 
                 allocateResources(running);
+
+                //run process
                 printf("running for 1 second...\n");
                 sleep(1);
-                running.processorTime -=1;
+                running.processorTime -=1;//remove used processor time
+
                 printf("process has %d seconds of runtime left.\n", running.processorTime);
-                if(running.processorTime >0){
+
+                //check if process is finished
+                if(running.processorTime >0){//if not finished
                     printf("sending process to user2 queue.\n"); 
                     running.priority = 2;
                     running.suspended = true;
                     push(running, &user2);
-                }else{
+                }else{//if it is finished
                     printf("process complete, reallocating memory\n");
                     deallocateResources(running);
                 }
             }
-            else{
+            else{//if requested resources are not available
                 printf("there are not enough resources available to run this process. sending process to user2 queue.\n");
                 running.priority = 2;
+                push(running, &user2);
             }
             
         }
@@ -233,7 +257,7 @@ int main(){
             running = pop(&user2);
             //check if requested resources are available or have already been assigned
             if(shouldRun(running) || running.suspended==true){
-                (running.suspended==true)?allocateResources(running):;           
+                (running.suspended==true)?allocateResources(running):printf("hi\n");           
                 printf("running for 1 second...\n");
                 sleep(1);
                 running.processorTime -= 1;
@@ -258,7 +282,7 @@ int main(){
             running = pop(&user3);
             //check if requested resources are available or have already been assigned
             if(shouldRun(running) || running.suspended == true){
-                (running.suspended==true)?allocateResources(running):;  
+                (running.suspended==true)?allocateResources(running): printf("hi\n");  
                 printf("running for 1 second...\n");
                 sleep(1);
                 running.processorTime -= 1;
@@ -278,6 +302,7 @@ int main(){
             }
 
         }
+        printMemory();
 
     }
     //end of while loop, dispatcher has finished reading processes from file
