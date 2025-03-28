@@ -47,9 +47,9 @@ typedef struct queue{
 
 //printProcess print process id, priority, processor time remaining, memory location, resources
 void printProcess(process proc){
-    printf("arrivalTime: %d priority: %d time remaining: %d Mbytes: %d printers: %d scanners: %d modems: %d CDs: %d\n\n", 
+    printf("arrivalTime: %d priority: %d time remaining: %d Mbytes: %d printers: %d scanners: %d modems: %d CDs: %d", 
        proc.arrivalTime, proc.priority, proc.processorTime, proc.MBytes, proc.numPrinters, proc.numScanners, proc.numModems, proc.numCDs);
-   
+   printf(" suspended: %d\n\n", proc.suspended);
 }
 
 //push a new process to end of queue
@@ -103,11 +103,11 @@ void printQueue(fifoQueue *headNode){
 //shouldRun checks if a process's requested resources are available if it hasn't been allocated already
 bool shouldRun(process toRun){
     return (toRun.suspended != true && 
-        availableMem > toRun.MBytes && 
-        sysPrinters > toRun.numPrinters && 
-        sysScanners > toRun.numScanners && 
-        sysModems > toRun.numModems && 
-        sysCDs > toRun.numCDs);
+        availableMem >= toRun.MBytes && 
+        sysPrinters >= toRun.numPrinters && 
+        sysScanners >= toRun.numScanners && 
+        sysModems >= toRun.numModems && 
+        sysCDs >= toRun.numCDs);
 }
 
 //allocateResources allocates the resources for a particular process
@@ -121,7 +121,6 @@ void allocateResources(process toRun){
 
 //deallocateResources deallocates the resource for a process
 void deallocateResources(process toRun){
-    printf("INSIDE THE DEALLOCATE FUNCTION\n");
     availableMem += toRun.MBytes;
     sysPrinters += toRun.numPrinters;
     sysScanners += toRun.numScanners;
@@ -155,8 +154,6 @@ int main(){
         //read a line from file, create process
     char buffer[256], arriveTime[2], prior[1], processTime[10], memory[10], prints[10], scans[10], mods[10], cds[10];
     FILE *fp = fopen("dispatchList.txt", "r");
-    printAvailableResources();
-    printf("\n");
 
     while(fgets(buffer, 256, fp)){
         strcpy(arriveTime, strtok(buffer, ","));
@@ -178,10 +175,12 @@ int main(){
         new.numScanners = atoi(scans);
         new.numModems = atoi(mods);
         new.numCDs = atoi(cds);
+        new.suspended = false;
 
         //step 2: sort/push() the job into correct queue
         switch(new.priority){
             case 0: 
+                printf("this is a runtime process\n");
                 push(new, &priorityQ);
                 break;
             case 1: 
@@ -199,129 +198,140 @@ int main(){
                 break;
         }
 
+
         printMemory();
         process running;
-        //step 3: if priority sorted ==0, run/pop from priority queue
+        // step 3: if priority sorted ==0, run/pop from priority queue
         if(new.priority == 0){
-            //print process info
-            printf("PRIORITY QUEUE: information on process to be run: \n");
             printProcess(new);
 
-            //pop from queue
+            //pop from queue also prints the process
             running = pop(&priorityQ);
+            printf("priorityQ:\n");
+            printQueue(priorityQ);
 
             allocateResources(running); //allocate memory while processing
+            printf("allocate:\n");
+            printMemory();
 
-            //running process
-            printf("running for %d seconds... \n", running.processorTime);
-            sleep(running.processorTime);
-
-            //reallocate memory
-            printf("process is complete, reallocating memory\n");
+            printf("deallocate:\n");
             deallocateResources(running); 
-            printAvailableResources();
-            printf("\n");
+            printMemory();
+
+            printf("priorityQ:\n");
+            printQueue(priorityQ);
+            
         }
         else if(user1 != NULL){
+            printf("user1:\n");
+            printQueue(user1);
 
-            //print process info
-            printf("USER1 QUEUE: information on process to be run: \n");
-            running = pop(&user1);//pop from queue
-            printProcess(running);
+            running = pop(&user1);//pop from queue automatically prints process
+            
             
             //check if requested resources are available
             if(shouldRun(running)){
+                printf("shouldRun is true\n");
                 
                 //then allocate resources 
                 allocateResources(running);
+                printMemory();
 
-                //run process
-                printf("running for 1 second...\n");
-                sleep(1);
                 running.processorTime -=1;//remove used processor time
-
-                printf("process has %d seconds of runtime left.\n", running.processorTime);
 
                 //check if process is finished
                 if(running.processorTime >0){//if not finished
-                    printf("sending process to user2 queue.\n"); 
+                    printf("send to next queue\n");
                     running.priority = 2;
                     running.suspended = true;
+                    printProcess(running);
                     push(running, &user2);
                 }else{//if it is finished
-                    printf("process complete, reallocating memory\n");
+                    printf("deallocate\n");
                     deallocateResources(running);
-                    printAvailableResources();
-                    printf("\n");
+                    printMemory();
                 }
             }
             else{//if requested resources are not available
-                printf("there are not enough resources available to run this process. sending process to user2 queue.\n");
+                printf("shouldrun is false, send to next queue\n");
                 running.priority = 2;
+                printProcess(running);
                 push(running, &user2);
             }
             
         }
         else if(user2 != NULL){
-            printf("USER2 QUEUE: information on process to be run:\n");
-            
-            running = pop(&user2);
-            printProcess(running);
-            //check if requested resources are available or have already been assigned
+
+            printf("user2:\n");
+            printQueue(user2);
+
+            printf("pop from queue:\n");
+            running = pop(&user2);//pop from queue
+
             if(shouldRun(running) || running.suspended==true){
-                (running.suspended==true)?printf("process resources already allocated\n"):allocateResources(running);           
-                printf("running for 1 second...\n");
-                sleep(1);
+                printf("shouldrun is true\n");
+                (running.suspended==true)?printf("process resources already allocated\n"):allocateResources(running);   
+                printMemory();  
                 running.processorTime -= 1;
-                printf("process has %d seconds of runtime left.\n", running.processorTime);
                 if(running.processorTime >0){
-                    printf("sending process to user3 (lowest priority) queue.\n");
+                    printf("send process to next queue\n");
                     running.priority = 3;
                     running.suspended = true;
+                    printProcess(running);
                     push(running, &user3);
                 }else{
-                    printf("process complete, reallocating memory\n");
+                    printf("deallocate\n");
                     deallocateResources(running);
-                    printAvailableResources();
-                    printf("\n");
+                    printMemory();
                 }   
             }
             else{
-                printf("there are not enough resources available to run this process. sending process to user3 queue.\n");
+                printf("shouldrun is false, send to next queue\n");
                 running.priority = 3;
+                printProcess(running);
+                push(running, &user3);
             }
         }else{
-            printf("USER3 QUEUE: information on process to be run: \n");
-           
+            printf("user3:\n");
+            printQueue(user3);
+            
             running = pop(&user3);
             printProcess(running);
             //check if requested resources are available or have already been assigned
             if(shouldRun(running) || running.suspended == true){
-                (running.suspended==true)?printf("process resources already allocated\n"): allocateResources(running);  
-                printf("running for 1 second...\n");
-                sleep(1);
+                (running.suspended==true)?printf("process resources already allocated\n"):allocateResources(running);   
+                printMemory();
                 running.processorTime -= 1;
-                printf("process has %d seconds of runtime left.\n", running.processorTime);
                 if(running.processorTime >0){
                     printf("resubmitting process to user3 queue\n");
-                    running.suspended = true;
+                    printProcess(running);
                     push(running, &user3);
+                    
                 }else{
-                    printf("process complete, reallocating memory\n");//NOTE: code currently does not check that the memory stays a positive number
+                    printf("deallocate\n");
                     deallocateResources(running);
-                    printAvailableResources();
-                    printf("\n");
+                    printMemory();
+                   
                 }
             }
             else{
-                printf("there are not enough resources available to run this process. sending process to user3 queue.\n");
-                running.priority = 3;
+                printf("shouldrun is false, send back into queue\n");
+                printProcess(running);
+                push(running, &user3);
             }
 
         }
         printMemory();
 
     }
+    printf("priorityQ:\n");
+    printQueue(priorityQ);
+    printf("user1:\n");
+    printQueue(user1);
+    printf("user2:\n");
+    printQueue(user2);
+    printf("user3:\n");
+    printQueue(user3);
     //end of while loop, dispatcher has finished reading processes from file
     
     //last step: make sure the rest of the queues are empty
