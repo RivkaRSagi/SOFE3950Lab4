@@ -8,11 +8,12 @@
 
 // define system resources
 #define MEMORY 1024
-int sysPrinters = 2;
-int sysScanners = 1;
-int sysModems = 1;
-int sysCDs = 2;
-int availableMem = MEMORY;
+unsigned short int PRINTERS = 2;
+unsigned short int SCANNERS = 1;
+unsigned short int MODEMS = 1;
+unsigned short int CD_DRIVES = 2;
+unsigned short int SYS_MEM = 96;
+unsigned short int USR_MEM = MEMORY - 96;
 
 // struct datatype to define a process
 typedef struct process {
@@ -53,10 +54,10 @@ void push(process newProc, fifoQueue **headNode);
 process pop(fifoQueue **headNode);
 void printProcess(process proc);
 
-bool shouldRun(process toRun);
+bool resourcesAvailable(process toRun);
 void allocateResources(process toRun);
 void deallocateResources(process toRun);
-void printMemory();
+void logUsage();
 void printAvailableResources();
 
 int main();
@@ -65,8 +66,7 @@ int main();
 // printProcess print process id, priority, processor time remaining, memory
 // location, resources
 void printProcess(process proc) {
-  printf("arrivalTime: %d priority: %d time remaining: %d Mbytes: %d printers: "
-         "%d scanners: %d modems: %d CDs: %d",
+  printf("arrivalTime:%d priority:%d time remaining:%d Mbytes:%d printers:%d scanners:%d modems:%d CDs: %d",
          proc.arrivalTime, proc.priority, proc.processorTime, proc.MBytes,
          proc.numPrinters, proc.numScanners, proc.numModems, proc.numCDs);
   printf(" suspended: %d\n\n", proc.suspended);
@@ -120,41 +120,50 @@ void printQueue(fifoQueue *headNode) {
   } while (temp != NULL);
 }
 
-// shouldRun checks if a process's requested resources are available if it
+// resourcesAvailable checks if a process's requested resources are available if it
 // hasn't been allocated already
-bool shouldRun(process toRun) {
-  return (toRun.suspended != true && availableMem >= toRun.MBytes &&
-          sysPrinters >= toRun.numPrinters &&
-          sysScanners >= toRun.numScanners && sysModems >= toRun.numModems &&
-          sysCDs >= toRun.numCDs);
+bool resourcesAvailable(process toRun) {
+  return (toRun.suspended != true && USR_MEM >= toRun.MBytes &&
+          PRINTERS >= toRun.numPrinters &&
+          SCANNERS >= toRun.numScanners && MODEMS >= toRun.numModems &&
+          CD_DRIVES >= toRun.numCDs);
 }
 
 // allocateResources allocates the resources for a particular process
 void allocateResources(process toRun) {
-  availableMem -= toRun.MBytes;
-  sysPrinters -= toRun.numPrinters;
-  sysScanners -= toRun.numScanners;
-  sysModems -= toRun.numModems;
-  sysCDs -= toRun.numCDs;
+  USR_MEM -= toRun.MBytes;
+  PRINTERS -= toRun.numPrinters;
+  SCANNERS -= toRun.numScanners;
+  MODEMS -= toRun.numModems;
+  CD_DRIVES -= toRun.numCDs;
 }
 
 // deallocateResources deallocates the resource for a process
 void deallocateResources(process toRun) {
-  availableMem += toRun.MBytes;
-  sysPrinters += toRun.numPrinters;
-  sysScanners += toRun.numScanners;
-  sysModems += toRun.numModems;
-  sysCDs += toRun.numCDs;
+  USR_MEM += toRun.MBytes;
+  PRINTERS += toRun.numPrinters;
+  SCANNERS += toRun.numScanners;
+  MODEMS += toRun.numModems;
+  CD_DRIVES += toRun.numCDs;
 }
 
-void printMemory() {
-  printf("system memory: %d\nprinters: %d\nscanners: %d\nmodems: %d\ncds: %d\n",
-         availableMem, sysPrinters, sysScanners, sysModems, sysCDs);
+void logUsage() {
+    FILE *fp = fopen("usage_log.txt", "a"); // Open file in append mode
+    if (fp == NULL) {
+        perror("Failed to open log file"); // Print error to stderr if file opening fails
+        return;
+    }
+
+    fprintf(fp, "MEM_MB: %d/1024   PRINTERS: %d/2   SCANNERS: %d/1   MODEMS: %d/1   CD: %d/2\n",
+            USR_MEM, PRINTERS, SCANNERS, MODEMS, CD_DRIVES);
+
+    fclose(fp); // Close the file to free resources
 }
+
 void printAvailableResources() {
   printf("Available system resources: \n");
   printf("Memory: %d, Printers: %d, Scanners: %d, Modems: %d, CDs: %d \n",
-         availableMem, sysPrinters, sysScanners, sysModems, sysCDs);
+         USR_MEM, PRINTERS, SCANNERS, MODEMS, CD_DRIVES);
 }
 
 int main() {
@@ -213,7 +222,7 @@ int main() {
       break;
     }
 
-    printMemory();
+    logUsage();
     process running;
     // step 3: if priority sorted ==0, run/pop from priority queue
     if (new.priority == 0) {
@@ -226,11 +235,11 @@ int main() {
 
       allocateResources(running); // allocate memory while processing
       printf("allocate:\n");
-      printMemory();
+      logUsage();
 
       printf("deallocate:\n");
       deallocateResources(running);
-      printMemory();
+      logUsage();
 
       printf("RTQ:\n");
       printQueue(RTQ);
@@ -242,12 +251,11 @@ int main() {
       running = pop(&USER1); // pop from queue automatically prints process
 
       // check if requested resources are available
-      if (shouldRun(running)) {
-        printf("shouldRun is true\n");
-
+      if (resourcesAvailable(running)) {
+        printf("ALLOCATING...\n");
         // then allocate resources
         allocateResources(running);
-        printMemory();
+        logUsage();
 
         running.processorTime -= 1; // remove used processor time
 
@@ -259,9 +267,9 @@ int main() {
           printProcess(running);
           push(running, &USER2);
         } else { // if it is finished
-          printf("deallocate\n");
+          printf("DEALLOCATE...\n");
           deallocateResources(running);
-          printMemory();
+          logUsage();
         }
       } else { // if requested resources are not available
         printf("shouldrun is false, send to next queue\n");
@@ -278,12 +286,12 @@ int main() {
       printf("pop from queue:\n");
       running = pop(&USER2); // pop from queue
 
-      if (shouldRun(running) || running.suspended == true) {
+      if (resourcesAvailable(running) || running.suspended == true) {
         printf("shouldrun is true\n");
         (running.suspended == true)
             ? printf("process resources already allocated\n")
             : allocateResources(running);
-        printMemory();
+        logUsage();
         running.processorTime -= 1;
         if (running.processorTime > 0) {
           printf("send process to next queue\n");
@@ -294,7 +302,7 @@ int main() {
         } else {
           printf("deallocate\n");
           deallocateResources(running);
-          printMemory();
+          logUsage();
         }
       } else {
         printf("shouldrun is false, send to next queue\n");
@@ -310,11 +318,11 @@ int main() {
       printProcess(running);
       // check if requested resources are available or have already been
       // assigned
-      if (shouldRun(running) || running.suspended == true) {
+      if (resourcesAvailable(running) || running.suspended == true) {
         (running.suspended == true)
             ? printf("process resources already allocated\n")
             : allocateResources(running);
-        printMemory();
+        logUsage();
         running.processorTime -= 1;
         if (running.processorTime > 0) {
           printf("resubmitting process to USER3 queue\n");
@@ -324,7 +332,7 @@ int main() {
         } else {
           printf("deallocate\n");
           deallocateResources(running);
-          printMemory();
+          logUsage();
         }
       } else {
         printf("shouldrun is false, send back into queue\n");
@@ -332,7 +340,7 @@ int main() {
         push(running, &USER3);
       }
     }
-    printMemory();
+    logUsage();
   }// END OF WHILE LOOP
 
   fclose(fp);// release file
@@ -344,16 +352,6 @@ int main() {
   printQueue(USER2);
   printf("USER3:\n");
   printQueue(USER3);
-  // end of while loop, dispatcher has finished reading processes from file
-
-  // last step: make sure the rest of the queues are empty
-  // at this point the priority q has finished, there may be content in one of
-  //  the user queues.
-  // completely empty USER1 first, then move to USER2, then USER3
-
-  // print the total available system resources before reading any processes,
-  // and reprint total avaiable after finishing the code, make sure they're the
-  // same
 
   return 0;
 }
