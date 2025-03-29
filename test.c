@@ -187,39 +187,64 @@ process parseProcess(char *buffer) {
   }
 
 // Process user queues
+// Processes a queue of processes, moving them to the next queue based on resource availability and remaining time
 void processUserQueue(fifoQueue **q, fifoQueue **nextQ, int nextPriority) {
+    // Check if the current queue is empty; if so, exit the function
     if (*q == NULL) return;
+    
+    // Display the priority level of the queue being processed
     printf("Processing queue at priority %d:\n", nextPriority - 1);
+    
+    // Print the contents of the current queue for debugging/viewing
     printQueue(*q);
+    
+    // Remove and get the first process from the current queue
     process running = pop(q);
   
+    // Check if resources are available or if process is already suspended
     if (resourcesAvailable(running) || running.suspended) {
-      printf("shouldrun is true\n");
-      if (!running.suspended) {
-        allocateResources(running);
-      } else {
-        printf("process resources already allocated\n");
-      }
-      logUsage();
-      running.processorTime -= 1;
-      if (running.processorTime > 0) {
-        printf("send to next queue\n");
-        running.priority = nextPriority;
-        running.suspended = true;
-        printProcess(running);
-        push(running, nextQ);
-      } else {
-        printf("deallocate\n");
-        deallocateResources(running);
+        printf("shouldrun is true\n");
+        
+        // If process isn't suspended, allocate resources to it
+        if (!running.suspended) {
+            allocateResources(running);
+        } else {
+            // If suspended, resources were already allocated previously
+            printf("process resources already allocated\n");
+        }
+        
+        // Log the current resource usage
         logUsage();
-      }
+        
+        // Decrease the process's remaining execution time
+        running.processorTime -= 1;
+        
+        // Check if process still needs more execution time
+        if (running.processorTime > 0) {
+            printf("send to next queue\n");
+            // Update priority and mark as suspended for next queue
+            running.priority = nextPriority;
+            running.suspended = true;
+            printProcess(running);
+            // Add process to the next priority queue
+            push(running, nextQ);
+        } else {
+            // Process is complete, clean up
+            printf("deallocate\n");
+            deallocateResources(running);
+            // Log final resource usage
+            logUsage();
+        }
     } else {
-      printf("shouldrun is false, send to next queue\n");
-      running.priority = nextPriority;
-      printProcess(running);
-      push(running, nextQ);
+        // Resources not available and process not suspended
+        printf("shouldrun is false, send to next queue\n");
+        // Update priority for next queue
+        running.priority = nextPriority;
+        printProcess(running);
+        // Move process to next queue without running it
+        push(running, nextQ);
     }
-  }
+}
 
 int main() {
   // step 1: read from job list
