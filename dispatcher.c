@@ -316,15 +316,7 @@ int main(){
     printQueue(user2);
     printf("user3:\n");
     printQueue(user3);
-    //end of while loop, dispatcher has finished reading processes from file
-    
-    //last step: make sure the rest of the queues are empty
-    //at this point the priority q has finished, there may be content in one of
-    // the user queues.
-    //completely empty user1 first, then move to user2, then user3
-
-    //print the total available system resources before reading any processes, 
-    //and reprint total avaiable after finishing the code, make sure they're the same
+  
 
 
     return 0;
